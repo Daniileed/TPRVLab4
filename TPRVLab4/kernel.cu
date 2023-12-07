@@ -13,8 +13,8 @@ using namespace cv;
 using namespace std;
 
 #define BLOCK_SIZE 32
-#define Height 768
-#define Length 1024
+#define Height 1536
+#define Length 2048
 string filename = "C://Users//danii//source//repos//TPRVLab4//" + std::to_string(Length) + "x" + std::to_string(Height) + ".jpg";
 #define output_path "C://Users//danii//source//repos//TPRVLab4//result.jpg"
 
@@ -111,6 +111,87 @@ int main()
     Mat img_color = imread(filename);
     Mat3i result_img(Height, Length);
 
+    
+    Mat Sobel_scale = Mat::zeros(Height, Length, CV_8UC1);
+
+
+    auto start_1 = std::chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            Bv[i][j] = img_color.at<cv::Vec3b>(i, j)[0];
+            Gv[i][j] = img_color.at<cv::Vec3b>(i, j)[1];
+            Rv[i][j] = img_color.at<cv::Vec3b>(i, j)[2];
+            Iv[i][j] = floor((Rv[i][j] + Gv[i][j] + Bv[i][j]) / 3);
+        }
+    }
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            check_elementX(i, j, i - 1, j - 1, 0, 0);
+            check_elementX(i, j, i, j - 1, 1, 0);
+            check_elementX(i, j, i + 1, j - 1, 2, 0);
+
+            check_elementX(i, j, i - 1, j + 1, 0, 2);
+            check_elementX(i, j, i, j + 1, 1, 2);
+            check_elementX(i, j, i + 1, j + 1, 2, 2);
+
+            check_elementY(i, j, i - 1, j - 1, 0, 0);
+            check_elementY(i, j, i - 1, j, 0, 1);
+            check_elementY(i, j, i - 1, j + 1, 0, 2);
+
+            check_elementY(i, j, i + 1, j - 1, 2, 0);
+            check_elementY(i, j, i + 1, j, 2, 1);
+            check_elementY(i, j, i + 1, j + 1, 2, 2);
+
+        }
+    }
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            MRv[i][j] = floor(sqrt(pow(MX[i][j], 2) + pow(MY[i][j], 2)));
+        }
+    }
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            if (MRv[i][j] >= MRMax)
+                MRMax = MRv[i][j];
+        }
+    }
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            MRv[i][j] = MRv[i][j] * 255 / MRMax;
+        }
+    }
+
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            Sobel_scale.at<uchar>(i, j) = MRv[i][j];
+        }
+    }
+
+
+    auto end_1 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> dur1 = (end_1 - start_1);
+    std::cout << "Procesor Time: " << dur1.count() << " seconds\n\n";
+
+   // namedWindow("Sobel_scale", WINDOW_NORMAL);
+   // imshow("Sobel_scale", Sobel_scale);
+   // waitKey(0);
+   // destroyAllWindows();
+
+    for (int i = 0; i < Height; i++) {
+        for (int j = 0; j < Length; j++) {
+            Iv[i][j] = 0;
+            MX[i][j] = 0;
+            MY[i][j] = 0;
+            MRv[i][j] = 0;
+        }
+    }
+
     cudaEvent_t start, stop;
     float gpuTime = 0.0f;
     cudaEventCreate(&start);
@@ -180,7 +261,7 @@ int main()
         }
     }
 
-    Mat Sobel_scale = Mat::zeros(Height, Length, CV_8UC1);
+    
 
     for (int i = 0; i < Height; i++) {
         for (int j = 0; j < Length; j++)
@@ -206,83 +287,7 @@ int main()
     cudaFree(MY_dev);
     cudaFree(MRv_dev);
 
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            Iv[i][j] = 0;
-            MX[i][j] = 0;
-            MY[i][j] = 0;
-            MRv[i][j] = 0;
-        }
-    }
-
-     Sobel_scale = Mat::zeros(Height, Length, CV_8UC1);
-
-    auto start_1 = std::chrono::high_resolution_clock::now();
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            Bv[i][j] = img_color.at<cv::Vec3b>(i, j)[0];
-            Gv[i][j] = img_color.at<cv::Vec3b>(i, j)[1];
-            Rv[i][j] = img_color.at<cv::Vec3b>(i, j)[2];
-            Iv[i][j] = floor((Rv[i][j] + Gv[i][j] + Bv[i][j]) / 3);
-        }
-    }
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            check_elementX(i, j, i - 1, j - 1, 0, 0);
-            check_elementX(i, j, i, j - 1, 1, 0);
-            check_elementX(i, j, i + 1, j - 1, 2, 0);
-
-            check_elementX(i, j, i - 1, j + 1, 0, 2);
-            check_elementX(i, j, i, j + 1, 1, 2);
-            check_elementX(i, j, i + 1, j + 1, 2, 2);
-
-            check_elementY(i, j, i - 1, j - 1, 0, 0);
-            check_elementY(i, j, i - 1, j, 0, 1);
-            check_elementY(i, j, i - 1, j + 1, 0, 2);
-
-            check_elementY(i, j, i + 1, j - 1, 2, 0);
-            check_elementY(i, j, i + 1, j, 2, 1);
-            check_elementY(i, j, i + 1, j + 1, 2, 2);
-
-        }
-    }
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            MRv[i][j] = floor(sqrt(pow(MX[i][j], 2) + pow(MY[i][j], 2)));
-        }
-    }
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            if (MRv[i][j] >= MRMax)
-                MRMax = MRv[i][j];
-        }
-    }
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            MRv[i][j] = MRv[i][j] * 255 / MRMax;
-        }
-    }
-
-    for (int i = 0; i < Height; i++) {
-        for (int j = 0; j < Length; j++) {
-            Sobel_scale.at<uchar>(i, j) = MRv[i][j];
-        }
-    }
-
-
-    auto end_1 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> dur1 = (end_1 - start_1);
-    std::cout << "Procesor Time: " << dur1.count() << " seconds\n\n";
-
-  //  namedWindow("Sobel_scale", WINDOW_NORMAL);
-  //  imshow("Sobel_scale", Sobel_scale);
-  //  waitKey(0);
-  //  destroyAllWindows();
+    
 
     return 0;
 }
